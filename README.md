@@ -2,7 +2,7 @@
 Short networking infrastructure as code demo. Takes info about hosts, links and services, providing configs based on that.  
 
 The purpose of this demo is to show the abstraction concept. Using only the following input, full device configurations for different device roles can be generated.
-1. A list of leaf- and spine switches and their associated variables
+1. A list of leaf- and spine switches and some of their associated variables
 2. A list of links between those switches
 3. A list of services that the resulting fabric can provide
 
