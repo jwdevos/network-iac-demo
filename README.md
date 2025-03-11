@@ -1,5 +1,5 @@
 # network-iac-demo
-Short networking infrastructure as code demo. Takes info about hosts, links and services, providing configs based on that.  
+Short networking infrastructure as code demo. Takes info about nodes, links and services, providing configs based on that.  
 
 The purpose of this demo is to show the abstraction concept. Using only the following input, full configurations for different device roles can be generated.
 1. A list of leaf- and spine switches and some of their associated variables
