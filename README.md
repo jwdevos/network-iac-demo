@@ -15,6 +15,6 @@ Some details:
 - The file `parse.yml` is the Ansible playbook
 - The file `hosts.yml` contains a description of the desired leaf-spine fabric with the required variables
 - The file `templates/device.j2` contains the templating logic used to parse the input from `hosts.yml`
-- For reference, the `example` directory contains example config files that were used to base the templates on
+- For reference, the `examples` directory contains example config files that were used to base the templates on
 
 More info might follow later.  
