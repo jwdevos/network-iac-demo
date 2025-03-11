@@ -1,7 +1,7 @@
 # network-iac-demo
 Short networking infrastructure as code demo. Takes info about hosts, links and services, providing configs based on that.  
 
-Running `make parse` from the projects' root directory generates device configs to the `output` directory. Running `make clean` cleans up the output directory.  
+Running `make parse` from the project root directory generates device configs to the `output` directory. Running `make clean` cleans up the output directory.  
 
 This demo creates configuration files for a leaf-spine data center fabric based on Cisco NX-OS vPC.
 
