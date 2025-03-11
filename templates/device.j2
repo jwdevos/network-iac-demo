@@ -1,0 +1,116 @@
+hostname {{ inventory_hostname }}
+ip domain-name {{ domain }}
+ip name-server {{ dns1 }}
+ip name-server {{ dns2 }}
+ntp server {{ ntp1 }}
+ntp server {{ ntp2 }}
+
+interface mgmt 0
+ ip address {{ mgmt_ip }}
+ no shutdown
+{# lijst met services parsen en lijst met interfaces met services erop voor betreffende device aanmaken #}
+{% set svc_ints = [] %}
+{% for svc in services %}
+{% for int in svc.interfaces %}
+{% if int.host == inventory_hostname %}
+{% set svc_int = {'name': int.intf, 'type': int.type, 'peer_intf': int.peer_intf} %}
+{{- svc_ints.append(svc_int) -}}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% set uniq_svc_ints = svc_ints | unique(attribute='name') %}
+{# nieuwe lijst met interfaces maken, met per interface de service names en vlans toegevoegd #}
+{% set svc_ints_complete = [] %}
+{% for int in uniq_svc_ints %}
+{% set svc_int = {'name': int.name, 'type': int.type, 'peer_intf': int.peer_intf, 'svc_names': [], 'svc_vlans': []} %}
+{% for svc in services %}
+{% for intf in svc.interfaces %}
+{% if (int.name == intf.intf and intf.host == inventory_hostname) %}
+{{- svc_int.svc_names.append(svc.name) -}}
+{{- svc_int.svc_vlans.append(svc.vlan_id) -}}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{{- svc_ints_complete.append(svc_int) -}}
+{% endfor %}
+{# config voor interfaces met services genereren #}
+{% for int in svc_ints_complete | sort(attribute='name') -%}
+interface {{ int.name }}
+{% if int.type == 'access' %}
+ description access {{ int.svc_names[0] }} {{ int.peer_intf }}
+ switchport
+ switchport mode access
+ switchport access vlan {{ int.svc_vlans[0] }}
+{% endif %}
+{% if int.type == 'trunk' %}
+ description trunk {% for svc in int.svc_names %}{{ svc }} {% endfor %} {{ int.peer_intf }}
+ switchport
+ switchport mode trunk
+ switchport trunk native vlan {{ native_vlan }}
+ switchport trunk allowed vlan {% for vlan in int.svc_vlans %}{{ vlan }}{% if not loop.last %},{% endif %}{% endfor %}
+
+{% endif %}
+ no shutdown
+{% endfor %}
+{# lijst met links parsen en lijst met link pairs voor betreffende device aanmaken #}
+{% set link_pairs = [] %}
+{% for link in links %}
+{% if link.connections[0].name == inventory_hostname %}
+{% set pair = {'local': link.connections[0], 'remote': link.connections[1]} %}
+{{- link_pairs.append(pair) -}}
+{% endif %}
+{% if link.connections[1].name == inventory_hostname %}
+{% set pair = {'local': link.connections[1], 'remote': link.connections[0]} %}
+{{- link_pairs.append(pair) -}}
+{% endif %}
+{% endfor %}
+{# config voor fysieke interfaces genereren uit link_pairs #}
+{% for pair in link_pairs | sort(attribute='local.intf') %}
+interface {{ pair.local.intf }}
+ description {% if pair.local.type == 'vpc-peer' %}vPC {% endif %}uplink {{ pair.remote.name }} {{ pair.remote.intf }}
+ channel-group {{ pair.local.ch_id }} mode active
+ no shutdown
+{% endfor %}
+{# unieke port channels uit link_pairs halen en config voor genereren #}
+{% set unique_channels = link_pairs | selectattr('local.ch_id', 'defined') | unique(attribute='local.ch_id') | list %}
+{% for chan in unique_channels %}
+interface port-channel {{ chan.local.ch_id }}
+{% if chan.local.type == 'vpc-peer' %}
+ description vPC peer-link {{ chan.remote.name }}
+{% endif %}
+{% if chan.local.type == 'leaf-uplink' %}
+ description uplink dc1-spine
+{% endif %}
+{% if chan.local.type == 'vpc-downlink' %}
+ description downlink {{ chan.remote.name }}
+{% endif %}
+ switchport
+ switchport mode trunk
+{% if not chan.local.type == 'vpc-peer' %}
+ switchport trunk native vlan {{ native_vlan }}
+ switchport trunk allowed vlan all
+{% endif %}
+{% if chan.local.type == 'vpc-downlink' %}
+ vpc {{ chan.local.ch_id }}
+{% endif %}
+{% if chan.local.type == 'vpc-peer' %}
+ vpc peer-link
+{% endif %}
+ no shutdown
+{% endfor %}
+
+{# lijst met services parsen en vlan config genereren #}
+{% for service in services %}
+vlan {{ service.vlan_id }}
+ name {{ service.name }}
+{% endfor %}
+{% for vlan in infra_vlans %}
+vlan {{ vlan.id }}
+ name {{ vlan.name }}
+{% endfor %}
+
+{% if inventory_hostname in groups['spines'] %}
+vpc domain {{ vpc_domain }}
+ role priority {{ vpc_prio }}
+ peer-keepalive destination {{ vpc_peer }} source {{ mgmt_ip | ansible.utils.ipaddr('address') }}
+{% endif %}
