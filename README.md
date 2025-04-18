@@ -1,3 +1,5 @@
+**-- this repo will be archived and moved to https://codeberg.org/jwdevos/network-iac-demo --**
+
 # network-iac-demo
 Short networking infrastructure as code demo. Takes info about nodes, links and services, providing configs based on that.  
 
